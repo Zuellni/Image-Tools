@@ -28,7 +28,7 @@ from rich import print
 from transformers import AutoModelForCausalLM, AutoProcessor
 
 input = args.input
-output_dir = args.output
+output_dir = args.output_dir
 output_dir.mkdir(parents=True, exist_ok=True)
 device = torch.device(args.device)
 dtype = getattr(torch, args.dtype)
@@ -54,23 +54,21 @@ else:
     files = [input]
 
 with torch.inference_mode():
-    images = [Image.open(f).convert("RGB") for f in files]
-    text = [tasks[args.task]] * len(files)
-    inputs = processor(text=text, images=images)
-    inputs = inputs.to(device=device, dtype=dtype)
+    for file in files:
+        text = tasks[args.task]
+        images = Image.open(file).convert("RGB")
+        inputs = processor(text=text, images=images)
+        inputs = inputs.to(device=device, dtype=dtype)
 
-    output_ids = model.generate(
-        input_ids=inputs["input_ids"],
-        pixel_values=inputs["pixel_values"],
-        do_sample=False,
-        early_stopping=False,
-        max_new_tokens=args.tokens,
-        num_beams=args.beams,
-    )
+        output_ids = model.generate(
+            input_ids=inputs["input_ids"],
+            pixel_values=inputs["pixel_values"],
+            do_sample=False,
+            early_stopping=False,
+            max_new_tokens=args.tokens,
+            num_beams=args.beams,
+        )[0]
 
-    outputs = processor.batch_decode(output_ids, skip_special_tokens=True)
-
-
-for file, output in zip(files, outputs):
-    print(f'File: "{file.name}"\nOutput: "{output}"\n')
-    (output_dir / f"{file.stem}.txt").write_text(output, encoding="utf-8")
+        output = processor.decode(output_ids, skip_special_tokens=True)
+        (output_dir / f"{file.stem}.txt").write_text(output, encoding="utf-8")
+        print(f'File: "{file.name}"\nOutput: "{output}"\n')
