@@ -16,7 +16,10 @@ parser.add_argument("-i", "--input", type=Path, default=".")
 parser.add_argument("-o", "--output_dir", type=Path, default=".")
 parser.add_argument("-m", "--model", type=str, default="microsoft/Florence-2-large-ft")
 parser.add_argument("-t", "--task", type=str, choices=list(tasks.keys()), default="mdc")
-parser.add_argument("-d", "--device", type=str, choices=("cuda", "cpu"), default="cuda")
+parser.add_argument("-T", "--tokens", type=int, default=256)
+parser.add_argument("-B", "--beams", type=int, default=3)
+parser.add_argument("-d", "--device", type=str, default="cuda")
+parser.add_argument("-D", "--dtype", type=str, default="float16")
 args = parser.parse_args()
 
 import torch
@@ -28,7 +31,7 @@ input = args.input
 output_dir = args.output
 output_dir.mkdir(parents=True, exist_ok=True)
 device = torch.device(args.device)
-dtype = torch.float16
+dtype = getattr(torch, args.dtype)
 
 model = AutoModelForCausalLM.from_pretrained(
     pretrained_model_name_or_path=args.model,
@@ -61,8 +64,8 @@ with torch.inference_mode():
         pixel_values=inputs["pixel_values"],
         do_sample=False,
         early_stopping=False,
-        max_new_tokens=256,
-        num_beams=3,
+        max_new_tokens=args.tokens,
+        num_beams=args.beams,
     )
 
     outputs = processor.batch_decode(output_ids, skip_special_tokens=True)
