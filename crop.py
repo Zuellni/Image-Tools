@@ -7,17 +7,6 @@ from warnings import simplefilter
 
 simplefilter("ignore")
 
-parser = ArgumentParser()
-parser.add_argument("-i", "--input", type=Path, default=".")
-parser.add_argument("-o", "--output_dir", type=Path, default=".")
-parser.add_argument("-c", "--crop", type=int, default=64)
-parser.add_argument("-a", "--adjust", action="store_true")
-parser.add_argument("-f", "--flip", action="store_true")
-parser.add_argument("-j", "--jpeg", action="store_true")
-parser.add_argument("-s", "--shuffle", action="store_true")
-args = parser.parse_args()
-
-
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -26,9 +15,19 @@ from rich.progress import (
     TimeElapsedColumn,
     TimeRemainingColumn,
 )
-from torchvision import io
-from torchvision import transforms as T
+from torchvision import io, transforms as T
 from torchvision.transforms import functional as TF
+
+parser = ArgumentParser()
+parser.add_argument("-i", "--input", type=Path, default=".")
+parser.add_argument("-o", "--output_dir", type=Path, default=".")
+parser.add_argument("-c", "--crop", type=int, default=64)
+parser.add_argument("-d", "--device", type=str, default="cuda")
+parser.add_argument("-a", "--adjust", action="store_true")
+parser.add_argument("-f", "--flip", action="store_true")
+parser.add_argument("-j", "--jpg", action="store_true")
+parser.add_argument("-s", "--shuffle", action="store_true")
+args = parser.parse_args()
 
 progress = Progress(
     TextColumn("{task.description}"),
@@ -40,15 +39,17 @@ progress = Progress(
     TimeRemainingColumn(),
 )
 
+crop = args.crop
+input = args.input
 output_dir = args.output_dir
 output_dir.mkdir(parents=True, exist_ok=True)
-crop = args.crop
+suffixes = (".avif", ".bmp", ".jpeg", ".jpg", ".png", ".webp")
 
-if (input := args.input).is_dir():
-    suffixes = (".avif", ".bmp", ".jpeg", ".jpg", ".png", ".webp")
-    files = [f for f in input.glob("*.*") if f.suffix in suffixes]
-else:
-    files = [input]
+files = (
+    [f for f in input.glob("*.*") if f.suffix in suffixes]
+    if input.is_dir()
+    else [input] if input.is_file() else []
+)
 
 
 def save_image(image, adjust=False):
@@ -67,7 +68,7 @@ def save_image(image, adjust=False):
 
     image = image.cpu()
 
-    if args.jpeg:
+    if args.jpg:
         io.write_jpeg(image, output_dir / f"{output}.jpg", quality=100)
     else:
         io.write_png(image, output_dir / f"{output}.png", compression_level=0)
@@ -89,8 +90,8 @@ def save_text(text, output, shuffle=False):
         output.write_text(text, encoding="utf-8")
 
 
-with progress as p:
-    task = p.add_task("Cropping", total=len(files))
+with progress:
+    task = progress.add_task("Cropping", total=len(files))
 
     for file in files:
         image = io.read_image(file, io.ImageReadMode.RGB).cuda()
@@ -137,4 +138,4 @@ with progress as p:
             output = save_image(c, args.adjust)
             text and save_text(text, output, args.shuffle)
 
-        p.advance(task)
+        progress.advance(task)

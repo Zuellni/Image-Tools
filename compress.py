@@ -5,28 +5,30 @@ from PIL import Image
 
 parser = ArgumentParser()
 parser.add_argument("-i", "--input", type=Path, default=".")
-parser.add_argument("-o", "--output", type=Path, default=".")
+parser.add_argument("-o", "--output_dir", type=Path, default=".")
 parser.add_argument("-q", "--quality", type=int, default=100)
 parser.add_argument("-s", "--size", type=int, nargs=2, default=[1920, 1920])
 args = parser.parse_args()
 
-args.output.mkdir(parents=True, exist_ok=True)
-inputs = []
+input = args.input
+output_dir = args.output_dir
+output_dir.mkdir(parents=True, exist_ok=True)
+suffixes = (".avif", ".bmp", ".jpeg", ".jpg", ".png", ".webp")
 
-if args.input.is_dir():
-    for ext in ("avif", "bmp", "jpeg", "jpg", "png", "webp"):
-        inputs.extend(args.input.glob(f"*.{ext}"))
-elif args.input.is_file():
-    inputs.append(args.input)
+files = (
+    [f for f in input.glob("*.*") if f.suffix in suffixes]
+    if input.is_dir()
+    else [input] if input.is_file() else []
+)
 
-for input in inputs:
-    image = Image.open(input).convert("RGB")
+for file in files:
+    image = Image.open(file).convert("RGB")
     image.thumbnail(args.size)
-    output = args.output / f"{input.stem}.jpg"
+    output = output_dir / f"{file.stem}.jpg"
     index = 1
 
     while output.exists():
-        output = args.output / f"{input.stem} ({index}).jpg"
+        output = output_dir / f"{file.stem} ({index}).jpg"
         index += 1
 
     image.save(output, optimize=True, quality=args.quality)
