@@ -130,7 +130,7 @@ with progress:
             interpolation=T.InterpolationMode.BICUBIC,
         )
 
-        cropped = TF.ten_crop(image, (height, width))
+        cropped = list(TF.ten_crop(image, (height, width)))
         cropped = cropped[:4] + (cropped[5:9] if args.flip else [])
 
         for c in cropped:
