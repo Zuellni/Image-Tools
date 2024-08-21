@@ -23,6 +23,8 @@ tasks = {
     "dc": "<DETAILED_CAPTION>",
     "c": "<CAPTION>",
     "ocr": "<OCR>",
+    "sd3": "<DESCRIPTION>Describe this image in great detail.",
+    "tag": "<GENERATE_PROMPT>",
 }
 
 types = {
@@ -65,7 +67,7 @@ model = AutoModelForCausalLM.from_pretrained(
     device_map=device,
     torch_dtype=dtype,
     trust_remote_code=True,
-)
+).eval()
 
 processor = AutoProcessor.from_pretrained(
     pretrained_model_name_or_path=args.model,
