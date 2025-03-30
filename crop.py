@@ -27,6 +27,7 @@ parser.add_argument("-a", "--adjust", action="store_true")
 parser.add_argument("-f", "--flip", action="store_true")
 parser.add_argument("-j", "--jpg", action="store_true")
 parser.add_argument("-s", "--shuffle", action="store_true")
+parser.add_argument("-t", "--ten", action="store_true")
 args = parser.parse_args()
 
 progress = Progress(
@@ -81,13 +82,21 @@ def save_text(text, output, shuffle=False):
     text = "\n".join([t for t in text.splitlines() if t])
     text = " ".join(text.split())
 
-    if shuffle:
-        text = text.strip(string.punctuation + string.whitespace).strip()
+    sentences = text.strip(string.punctuation + string.whitespace).strip()
+    sentences = sentences.split(". ")
+
+    if shuffle and len(sentences) > 1:
+        prefix = sentences[0]
+        suffix = sentences[1:]
+        random.shuffle(suffix)
+        text = f"{prefix}. {'. '.join(suffix)}."
+    elif shuffle:
+        text = "".join(sentences)
         list = [t.strip() for t in text.split(",")]
         random.shuffle(list)
-        output.write_text(", ".join(list), encoding="utf-8")
-    else:
-        output.write_text(text, encoding="utf-8")
+        text = ", ".join(list)
+
+    output.write_text(text, encoding="utf-8")
 
 
 with progress:
@@ -130,12 +139,13 @@ with progress:
             interpolation=T.InterpolationMode.BICUBIC,
         )
 
-        cropped = list(TF.ten_crop(image, (height, width)))
-        cropped = cropped[:4] + (cropped[5:9] if args.flip else [])
+        if args.ten:
+            cropped = list(TF.ten_crop(image, (height, width)))
+            cropped = cropped[:4] + (cropped[5:9] if args.flip else [])
 
-        for c in cropped:
-            c = TF.center_crop(c, (height // crop * crop, width // crop * crop))
-            output = save_image(c, args.adjust)
-            text and save_text(text, output, args.shuffle)
+            for c in cropped:
+                c = TF.center_crop(c, (height // crop * crop, width // crop * crop))
+                output = save_image(c, args.adjust)
+                text and save_text(text, output, args.shuffle)
 
         progress.advance(task)
